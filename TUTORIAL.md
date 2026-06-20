@@ -7,6 +7,8 @@ A hands-on walkthrough for setting up a Mac (or Linux) dev environment that is:
 
 It replaces an older manual model (hand-edited shell env + plaintext tokens in a per-project file).
 
+> **In a hurry?** You don't have to do any of this by hand — jump to **[In practice — let the skills do it](#in-practice--let-the-skills-do-it)** at the end to just state your intent. The steps below are the under-the-hood, so you can read what the skills do and trust it.
+
 > **Read the ⚠️ STUMBLE blocks.** Every one was hit for real during the first build — they'll save you an hour each.
 
 ## Mental model
@@ -339,3 +341,29 @@ To push as different accounts — including two on the same host (e.g. a persona
 3. **Secrets come from OpenBao at runtime**, never committed; clean up `*.backup` / `*.pre-nix` leftovers.
 4. **Stale legacy dotfiles silently shadow managed ones** (`.profile`, `.gitconfig`) — retire them.
 5. **Edit → switch → new shell → verify; rollback if bad.**
+
+---
+
+## In practice — let the skills do it
+
+You just did everything by hand so you understand what's happening under the hood. Day to day you
+**don't** repeat these steps manually — this kit is a **Claude Code plugin**, so you state the
+intent and the skills execute the cookbook for you (they follow `COOKBOOK.md` to the letter).
+
+**Load it once:**
+```bash
+claude --plugin-dir /path/to/sprantic-dev-kit      # or install from a plugin marketplace
+```
+
+Then just say what you want — the matching skill picks it up:
+
+| What you learned to do by hand | In practice, just say… | Skill |
+|---|---|---|
+| **Steps 1–8** — lay out a project's toolchain, `.envrc`, git identity, account routing, and secrets | *"new website for customer X, repo `git@…:org/repo.git`, get going"* · *"onboard this repo internally"* | **new-project** |
+| **Step 4 / STUMBLE 5** — pin an older tool version | *"this site needs the older Hugo"* · *"pin node to 20 here"* | **pin-tool** |
+| **Step 5** + cleaning up `*.backup` plaintext | *"this token was in cleartext"* · *"migrate this old `project.json`"* | **rotate-secrets** |
+| **Steps 6–7 test recipe** — identity, routing, auth, toolchain | *"check this project is wired right"* | **project-doctor** |
+
+So the three layers fit together: **TUTORIAL** (this doc) teaches the model so you can trust what
+runs · the **skills** do the work from a one-line intent · **`COOKBOOK.md`** is the shared rulebook
+they follow (and your reference when you want the exact rule behind a step).

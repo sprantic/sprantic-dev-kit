@@ -27,7 +27,7 @@ From a one-line intent (e.g. *"new website for customer XY, repo git@…:org/rep
 9. **Verify**: run the **project-doctor** skill (4-layer test).
 
 ## New account (if the repo's account isn't wired yet)
-- Add `github-<acct>` to `home/ssh.nix`; `ssh-keygen -t ed25519 -f ~/.ssh/id_github_<acct> -C "<acct>@$(hostname -s)"`; tell the user to enroll the `.pub` on that account; verify `ssh -T git@github-<acct>` → "Hi <acct>!".
+- Add `github-<acct>` to `home/ssh.nix`; `ssh-keygen -t ed25519 -f ~/.ssh/id_github_<acct> -C "<acct>@$(hostname -s)"`; tell the user to enroll the `.pub` on that account; verify `ssh -T git@github-<acct>` → "Hi <acct>!". First connect to a **new/self-hosted host** prompts to trust the host key (`Host key verification failed` until accepted) — verify the fingerprint, then accept it. Self-hosted on a non-standard port → set `port = …;` in the alias.
 
 ## Hard rules (never violate)
 - **Commit**: `flake.nix`/`flake.lock`, generic `.envrc`. **Never commit**: `.envrc.local`, secret values.

@@ -67,11 +67,31 @@ export TF_VAR_hcloud_token="$(bao kv get -field=hcloud_token customers/<name>/in
   }; }
 ```
 
+**Identity strategy — no silent default, fail loud.** Set **no** unconditional global
+`user.name`/`user.email`, and add `user.useConfigOnly = true` (stops git inventing an identity
+from `$USER`/hostname). Give a broad work-tree default via `includeIf gitdir:~/projects/` and let
+the specific rules above override it — git applies includes top-to-bottom, **last match wins**, so
+list the broad default **first**. Net effect: repos under `~/projects/` "just work", but a repo
+*outside* it (or in the wrong place) matches nothing → the commit **fails loudly** (`Author
+identity unknown`) instead of being silently mis-attributed. Add a `~/projects/personal/` rule so
+non-work repos aren't stamped with the work identity. (`includeIf gitdir:` only resolves **inside a
+git repo** — a plain directory shows global config, which is now empty by design.)
+
+**Identity ≠ SSH key.** The commit `email` is *attribution* (whose name shows on the commit; hosts
+link it to a profile by verified email). The **SSH key** is *authentication* (who you may push as).
+Git never cross-checks them — you can commit as one identity and push with another account's key.
+The `url.insteadOf` line is what binds them per-context: it routes the remote through `<alias>` (→
+that account's key). A context with identity but **no** `insteadOf` (e.g. a personal group)
+authenticates via whatever default key matches — fine for attribution, ambiguous for access, so add
+an alias when you want both pinned together.
+
 ## 6. SSH account alias (`env/home/ssh.nix`) — one per account
 ```nix
 "github-<acct>" = { hostname = "github.com"; user = "git"; identityFile = "~/.ssh/id_github_<acct>"; identitiesOnly = true; };
 ```
-Key: `ssh-keygen -t ed25519 -f ~/.ssh/id_github_<acct> -C "<acct>@$(hostname -s)"`, enroll the `.pub` on that account. **Clone via the alias** (`git clone git@github-<acct>:<owner>/<repo>.git`) — `insteadOf` doesn't apply when cloning from the parent dir.
+Key: `ssh-keygen -t ed25519 -f ~/.ssh/id_github_<acct> -C "<acct>@$(hostname -s)"`, enroll the `.pub` on that account. **Clone via the alias** (`git clone git@github-<acct>:<owner>/<repo>.git`) — `insteadOf` doesn't apply when cloning from the parent dir. For a **non-standard SSH port** (self-hosted GitLab etc.) put it in the alias (`port = 2222;`) so plain `git@<alias>:owner/repo` still works.
+
+**First connect to a new/self-hosted host:** the host key isn't trusted yet, so `ssh -T` returns *"Host key verification failed"* — that's **not** an auth error. Connect once interactively, verify the fingerprint against the server's published one, and accept it to record it in `~/.ssh/known_hosts`.
 
 ## 7. Secrets — OpenBao paths
 - **shared infra** → `infra/<service>`

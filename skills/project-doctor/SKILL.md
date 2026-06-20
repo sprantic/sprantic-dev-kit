@@ -9,7 +9,7 @@ Run inside the project dir. Report each as ✅ / ⚠️ with the fix.
 
 1. **Identity** — `git config user.name` / `user.email` → expected per the `includeIf`. If it's your default, the gitdir doesn't match (check the path; check a stale `~/.gitconfig` isn't shadowing: `git config --show-origin --get-all user.email`).
 2. **Account routing** — `git ls-remote --get-url` → `git@<alias>:<owner>/<repo>` for a distinct account. Still https when you expected routing → `url.insteadOf` inactive (or cloned before switching).
-3. **Account auth** — `ssh -T git@<alias>` → "Hi <account>!". If not, the per-account key isn't generated/enrolled.
+3. **Account auth** — `ssh -T git@<alias>` → "Hi <account>!". If not, the per-account key isn't generated/enrolled. `Host key verification failed` on a new/self-hosted host ⇒ not an auth failure — connect once interactively, verify the fingerprint, accept it into `~/.ssh/known_hosts`.
 4. **Reachability** — `git ls-remote >/dev/null` → fetch works over the right key.
 5. **Toolchain** — `nix develop -c <primary-tool> --version` → builds, expected version. `"flake.nix … not tracked"` → `git add flake.nix`. Feature removed in a newer version → **pin-tool**.
 6. **Secrets present** (if any) — in a `direnv allow`-ed shell the expected `$VARS` are non-empty and the `.envrc` guards don't warn. Empty → `.envrc.local` missing, or Bao unreachable (the Linux machine often can't reach OpenBao).

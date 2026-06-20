@@ -9,9 +9,10 @@ the skills do the rest.
 - *"that token was in cleartext"* / migrating an old project.json → **rotate-secrets**
 - *"check the <customer> project is wired right"* → **project-doctor**
 
-## Contents
-- `COOKBOOK.md` — the what-goes-where reference (start here).
-- `skills/` — model-invoked skills: `new-project`, `pin-tool`, `rotate-secrets`, `project-doctor`.
+## Contents — reading order: **learn → reference → automate**
+- `TUTORIAL.md` — **new here? start here.** Hands-on walkthrough of the whole model (Nix flakes, direnv, per-context git identity, OpenBao) with the real first-build gotchas.
+- `COOKBOOK.md` — the what-goes-where **reference** once you know the model.
+- `skills/` — model-invoked skills that **automate** the cookbook: `new-project`, `pin-tool`, `rotate-secrets`, `project-doctor`.
 - `templates/` — per-stack `flake.<stack>.nix` + the generic `.envrc` / `.envrc.local`.
 
 ## Requirements / opinionated about

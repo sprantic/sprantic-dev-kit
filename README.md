@@ -1,4 +1,4 @@
-# project-kit
+# sprantic-dev-kit
 
 A no-brainer skillset for setting up and maintaining projects in the reproducible dev env
 (Nix flakes + direnv + per-context git identity/account + OpenBao secrets). Say the intent;
@@ -22,7 +22,7 @@ your own infra.
 
 ## Install as a Claude Code plugin
 This repo is plugin-shaped (`.claude-plugin/plugin.json` + `skills/`). Load it with
-`claude --plugin-dir /path/to/project-kit`, or publish it to a plugin marketplace.
+`claude --plugin-dir /path/to/sprantic-dev-kit`, or publish it to a plugin marketplace.
 
 ## License
 MIT — see [`LICENSE`](LICENSE).

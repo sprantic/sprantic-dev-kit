@@ -1,0 +1,6 @@
+{
+  "name": "project-kit",
+  "version": "0.1.0",
+  "description": "No-brainer project setup & lifecycle for the reproducible env: Nix-flake toolchains, direnv auto-loading, per-context git identity/account routing, and OpenBao secrets. Say the intent ('new website for customer X, here's the repo') and it wires everything per the cookbook.",
+  "author": { "name": "Martin Jahr - sprantic GmbH" }
+}

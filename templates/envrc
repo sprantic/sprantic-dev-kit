@@ -1,0 +1,9 @@
+# Generic project context — safe to commit / share. (project-kit template)
+use flake
+
+# Personal/org-specific secret wiring lives in .envrc.local (gitignored, never committed).
+source_env_if_exists .envrc.local
+
+# Contract — one non-fatal guard per required var, so a collaborator without .envrc.local
+# gets a clear nudge instead of silently-empty values (replaces .env.example). Example:
+# [ -n "$SOME_TOKEN" ] || log_status "SOME_TOKEN unset — create .envrc.local"

@@ -1,0 +1,9 @@
+# Personal secret wiring — NOT committed (globally gitignored). Fills the vars .envrc expects.
+# Secrets come from OpenBao; public keys from local files (never Bao). Examples:
+#
+# export SOME_TOKEN="$(bao kv get -field=token customers/<name>/<thing>)"
+# export TF_VAR_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"
+#
+# ⚠️ If a value here was EVER stored in cleartext before (old project.json/.env/.profile,
+#    committed config, shell history): ROTATE it first, then put the NEW value in OpenBao.
+#    Copying the old leaked value into Bao does NOT un-leak it.

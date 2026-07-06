@@ -8,12 +8,13 @@ the skills do the rest.
 - *"this site needs an older hugo"* → **pin-tool**
 - *"that token was in cleartext"* / migrating an old project.json → **rotate-secrets**
 - *"check the <customer> project is wired right"* → **project-doctor**
+- *"new laptop — get my projects onto it"* → **machine-sync**
 
 ## Contents — reading order: **learn → reference → automate**
 - `TUTORIAL.md` — **new here? start here.** Hands-on walkthrough of the whole model (Nix flakes, direnv, per-context git identity, OpenBao) with the real first-build gotchas.
 - `COOKBOOK.md` — the what-goes-where **reference** once you know the model.
-- `skills/` — model-invoked skills that **automate** the cookbook: `new-project`, `pin-tool`, `rotate-secrets`, `project-doctor`.
-- `templates/` — per-stack `flake.<stack>.nix` + the generic `.envrc` / `.envrc.local`.
+- `skills/` — model-invoked skills that **automate** the cookbook: `new-project`, `pin-tool`, `rotate-secrets`, `project-doctor`, `machine-sync`.
+- `templates/` — per-stack `flake.<stack>.nix`, the generic `.envrc` / `.envrc.local`, and the `repo` clone registry (`repo-registry.sh` + home-manager wiring).
 
 ## Requirements / opinionated about
 This kit assumes a specific (swappable) stack: **Nix flakes** for toolchains, **direnv** for

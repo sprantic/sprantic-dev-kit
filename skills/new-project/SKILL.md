@@ -25,6 +25,7 @@ From a one-line intent (e.g. *"new website for customer XY, repo git@…:org/rep
    - 🔑 **If migrating from a source that held secrets in cleartext** (old `project.json`/`.env`/`.profile`, committed config, shell history): those are **compromised** — invoke **rotate-secrets** to regenerate them at the source and vault the NEW values; never copy the old leaked value into Bao. Scrub the old copies.
 8. **Apply**: `cd ~/projects/env && ./bootstrap.sh`; then `cd <project> && direnv allow`.
 9. **Verify**: run the **project-doctor** skill (4-layer test).
+10. **Register** (if the `repo` command is installed — COOKBOOK §10): `repo register ~/projects/<group>/<repo>`, then commit `repos.manifest` in the env repo so every other machine picks the clone up via `repo sync`.
 
 ## New account (if the repo's account isn't wired yet)
 - Add `github-<acct>` to `home/ssh.nix`; `ssh-keygen -t ed25519 -f ~/.ssh/id_github_<acct> -C "<acct>@$(hostname -s)"`; tell the user to enroll the `.pub` on that account; verify `ssh -T git@github-<acct>` → "Hi <acct>!". First connect to a **new/self-hosted host** prompts to trust the host key (`Host key verification failed` until accepted) — verify the fingerprint, then accept it. Self-hosted on a non-standard port → set `port = …;` in the alias.

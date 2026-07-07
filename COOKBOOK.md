@@ -14,6 +14,7 @@ The reference the skills follow. Mental model: **flake = locked recipe card · `
 | **SSH private key** (`~/.ssh/id_<alias>`) | `~/.ssh/` on each device | ❌ never — per-device, never synced/vaulted |
 | **Secrets** (API tokens) | OpenBao | ❌ never in a repo |
 | **Public keys** | GitHub/GitLab account, or the server (tofu input) | ❌ not Bao (public ≠ secret) |
+| **Repo manifest** (`repos.manifest`, relpath → origin URL) | env repo root | ✅ commit to env repo (credentials stripped) |
 | **`.direnv/`, `result`** | nowhere — global gitignore | ❌ ignored |
 
 ## Values: one fact, one home
@@ -115,3 +116,12 @@ Then the 4-layer check (the **project-doctor** skill): `git config user.email` �
 - **State backend by repo host.** GitLab-hosted repos → **GitLab-managed state** (the integration). **GitHub / external repos → an S3-compatible backend** (e.g. Hetzner, Backblaze B2, MinIO: `endpoints.s3` + `use_path_style` + `use_lockfile`, skip the AWS-isms; creds via `AWS_ACCESS_KEY_ID/SECRET` from Bao). The state bucket is created **manually** — it can't be a bucket the same config manages (chicken-and-egg). Backend blocks can't use variables, so endpoint/bucket/region are literals (non-secret).
 - **Shared secrets across a customer group → one Bao path** (e.g. `customers/<name>/s3`), referenced by every consumer (tofu provider, state backend, app) under its own var name — single source, no drift.
 - **Server replaces.** Persistent data belongs on a **separate volume** (survives VM re-create) + an **offsite backup** (S3); content lives in Git. Before an apply that replaces a server, confirm the **volume isn't also replaced** (only a `location` change ForceNew's a volume) and take a fresh backup first.
+
+## 10. Repo registry — the clones sync too
+Configs and apps travel between machines through the env repo; the **clones themselves don't**. The `repo` command closes that gap with a checked-in manifest: `repos.manifest` at the env repo root, one `relpath url` per line, plus `ignore <prefix>` lines that exclude legacy trees on *every* machine (the rule syncs with the manifest).
+
+**Install** (home-manager): copy `templates/repo-registry.sh` + `templates/repo-registry.nix` side by side into the env repo's home tree and import the module. Conventions are overridable via `REPO_PROJECTS_ROOT` / `REPO_MANIFEST` (defaults: `~/projects`, `<root>/env/repos.manifest`).
+
+**Workflow**: `repo register` (one clone) or `repo scan` (walk everything) → commit + push env → other machine: pull env, `repo sync`. `repo status` shows `present` / `MISSING` / `DRIFTED` / `UNTRACKED` at a glance.
+
+**Drift model — the manifest is the published truth.** A local origin URL that differs is either an unpublished change (`repo register --update` pushes it into the manifest) or stale (`repo sync --fix-remotes` resets it to the manifest) — resolve via the verbs, not by hand, so manifest and machines converge. Embedded http(s) credentials are **stripped before recording** (a token in an origin URL never lands in the manifest — but it *was* in cleartext → **rotate-secrets**). Clones run through `direnv exec <parent>`, so the per-tree identity/SSH routing (§5–6) applies exactly as a manual clone from inside that tree; a blocked `.envrc` needs one `direnv allow <parent>` per machine.

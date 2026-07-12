@@ -9,10 +9,13 @@
 #   repo scan                        walk ~/projects and register every clone found
 #   repo sync [--fetch] [--fix-remotes]  clone everything missing here; --fix-remotes
 #                                    resets drifted local origin URLs to the manifest
-#   repo status [--fetch]            manifest vs. local: missing, untracked, DRIFTED
+#   repo status [--fetch] [--dirty]  manifest vs. local: missing, untracked, DRIFTED
 #                                    remotes, plus each clone's branch state (ahead/
 #                                    behind upstream, dirty); --fetch refreshes
-#                                    remotes first so the counts are current
+#                                    remotes first so the counts are current; --dirty
+#                                    hides clean in-sync clones, leaving only the ones
+#                                    needing attention (dirty, ahead/behind, no
+#                                    upstream, detached, drifted, missing, untracked)
 #
 # The manifest travels like every other config: commit + push env, pull on the other
 # machine, `repo sync`. Clones run through `direnv exec <parent>` so the per-tree
@@ -221,10 +224,11 @@ branch_state() {
 }
 
 cmd_status() {
-  local do_fetch=0 arg rel url local_url gitdir top
+  local do_fetch=0 dirty_only=0 arg rel url local_url state gitdir top
   for arg in "$@"; do
     case "$arg" in
       --fetch) do_fetch=1 ;;
+      --dirty) dirty_only=1 ;;
       *) echo "repo status: unknown flag $arg" >&2; return 1 ;;
     esac
   done
@@ -236,10 +240,15 @@ cmd_status() {
           git -C "$PROJECTS/$rel" fetch --quiet 2>/dev/null || echo "fetch failed: $rel" >&2
         fi
         local_url=$(clean_url "$(git -C "$PROJECTS/$rel" remote get-url origin 2>/dev/null || true)")
+        state=$(branch_state "$PROJECTS/$rel")
         if [ -n "$local_url" ] && [ "$local_url" != "$url" ]; then
-          echo "DRIFTED   $rel  (local $local_url, manifest $url; $(branch_state "$PROJECTS/$rel"))"
+          echo "DRIFTED   $rel  (local $local_url, manifest $url; $state)"
         else
-          echo "present   $rel  ($(branch_state "$PROJECTS/$rel"))"
+          # A clean, in-sync clone is the only state --dirty hides.
+          case "$state" in
+            *": in sync") [ "$dirty_only" -eq 1 ] && continue ;;
+          esac
+          echo "present   $rel  ($state)"
         fi
       else
         echo "MISSING   $rel  ($url)"

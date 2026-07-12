@@ -9,7 +9,10 @@
 #   repo scan                        walk ~/projects and register every clone found
 #   repo sync [--fetch] [--fix-remotes]  clone everything missing here; --fix-remotes
 #                                    resets drifted local origin URLs to the manifest
-#   repo status                      manifest vs. local: missing, untracked, DRIFTED remotes
+#   repo status [--fetch]            manifest vs. local: missing, untracked, DRIFTED
+#                                    remotes, plus each clone's branch state (ahead/
+#                                    behind upstream, dirty); --fetch refreshes
+#                                    remotes first so the counts are current
 #
 # The manifest travels like every other config: commit + push env, pull on the other
 # machine, `repo sync`. Clones run through `direnv exec <parent>` so the per-tree
@@ -188,17 +191,55 @@ cmd_sync() {
   [ "$failures" -eq 0 ] && [ "$drifted" -eq 0 ]
 }
 
+# Branch state of the clone at $1 relative to its upstream: "in sync", "2 ahead",
+# "1 behind", "1 ahead, 3 behind", "no upstream", or "detached"; ", dirty" appended
+# when the work tree has uncommitted changes. Ahead/behind counts compare against
+# the last fetch — pass --fetch to `repo status` for current numbers.
+branch_state() {
+  local top=$1 branch counts ahead behind state dirty=""
+  [ -n "$(git -C "$top" status --porcelain 2>/dev/null)" ] && dirty=", dirty"
+  branch=$(git -C "$top" symbolic-ref --quiet --short HEAD 2>/dev/null) || {
+    printf 'detached%s' "$dirty"
+    return 0
+  }
+  if counts=$(git -C "$top" rev-list --left-right --count "${branch}@{upstream}...${branch}" 2>/dev/null); then
+    behind=${counts%%[[:space:]]*}
+    ahead=${counts##*[[:space:]]}
+    if [ "$ahead" -eq 0 ] && [ "$behind" -eq 0 ]; then
+      state="in sync"
+    elif [ "$behind" -eq 0 ]; then
+      state="$ahead ahead"
+    elif [ "$ahead" -eq 0 ]; then
+      state="$behind behind"
+    else
+      state="$ahead ahead, $behind behind"
+    fi
+  else
+    state="no upstream"
+  fi
+  printf '%s: %s%s' "$branch" "$state" "$dirty"
+}
+
 cmd_status() {
-  local rel url local_url gitdir top
+  local do_fetch=0 arg rel url local_url gitdir top
+  for arg in "$@"; do
+    case "$arg" in
+      --fetch) do_fetch=1 ;;
+      *) echo "repo status: unknown flag $arg" >&2; return 1 ;;
+    esac
+  done
   if [ -f "$MANIFEST" ]; then
     while read -r rel url; do
       case "$rel" in '' | '#'* | ignore) continue ;; esac
       if [ -e "$PROJECTS/$rel/.git" ]; then
+        if [ "$do_fetch" -eq 1 ]; then
+          git -C "$PROJECTS/$rel" fetch --quiet 2>/dev/null || echo "fetch failed: $rel" >&2
+        fi
         local_url=$(clean_url "$(git -C "$PROJECTS/$rel" remote get-url origin 2>/dev/null || true)")
         if [ -n "$local_url" ] && [ "$local_url" != "$url" ]; then
-          echo "DRIFTED   $rel  (local $local_url, manifest $url)"
+          echo "DRIFTED   $rel  (local $local_url, manifest $url; $(branch_state "$PROJECTS/$rel"))"
         else
-          echo "present   $rel"
+          echo "present   $rel  ($(branch_state "$PROJECTS/$rel"))"
         fi
       else
         echo "MISSING   $rel  ($url)"
@@ -221,7 +262,7 @@ case "${1:-}" in
   register) shift; cmd_register "$@" ;;
   scan)     cmd_scan ;;
   sync)     shift || true; cmd_sync "$@" ;;
-  status)   cmd_status ;;
+  status)   shift || true; cmd_status "$@" ;;
   list)     cat "$MANIFEST" 2>/dev/null || echo "no manifest at $MANIFEST" ;;
   *)        usage; exit 1 ;;
 esac

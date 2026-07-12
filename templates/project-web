@@ -1,0 +1,8 @@
+# .project-web — this project's living URLs, one "label url" per line. Committed:
+# the web surface of a project is declared state, like its toolchain in flake.nix.
+# Consumers (env repo, home/browser-ctx.sh): `web start` opens these as tabs in the
+# project's browser context; `web-sync-bookmarks` mirrors them into the browser's
+# native bookmarks bar under Projects/<project>.
+# Keep it to the URLs that matter daily — repo, CI, tracker, staging, the one dashboard.
+repo https://example.com/org/repo
+pipelines https://example.com/org/repo/-/pipelines

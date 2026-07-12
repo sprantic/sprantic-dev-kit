@@ -9,13 +9,15 @@
 #   repo scan                        walk ~/projects and register every clone found
 #   repo sync [--fetch] [--fix-remotes]  clone everything missing here; --fix-remotes
 #                                    resets drifted local origin URLs to the manifest
-#   repo status [--fetch] [--dirty]  manifest vs. local: missing, untracked, DRIFTED
-#                                    remotes, plus each clone's branch state (ahead/
-#                                    behind upstream, dirty); --fetch refreshes
+#   repo status [--fetch] [--dirty] [name...]  manifest vs. local: missing, untracked,
+#                                    DRIFTED remotes, plus each clone's branch state
+#                                    (ahead/behind upstream, dirty); --fetch refreshes
 #                                    remotes first so the counts are current; --dirty
 #                                    hides clean in-sync clones, leaving only the ones
 #                                    needing attention (dirty, ahead/behind, no
-#                                    upstream, detached, drifted, missing, untracked)
+#                                    upstream, detached, drifted, missing, untracked);
+#                                    trailing names limit output to repos whose base
+#                                    name (last path component) or full relpath matches
 #
 # The manifest travels like every other config: commit + push env, pull on the other
 # machine, `repo sync`. Clones run through `direnv exec <parent>` so the per-tree
@@ -223,18 +225,35 @@ branch_state() {
   printf '%s: %s%s' "$branch" "$state" "$dirty"
 }
 
+# Does relpath $1 pass the name filters? Exact match on the base name (last path
+# component) or the full relpath; no filters means everything passes. `filters`
+# is the calling function's array (bash locals are dynamically scoped).
+name_selected() {
+  local f base=${1##*/}
+  [ "${#filters[@]}" -eq 0 ] && return 0
+  for f in "${filters[@]}"; do
+    if [ "$f" = "$base" ] || [ "$f" = "$1" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 cmd_status() {
   local do_fetch=0 dirty_only=0 arg rel url local_url state gitdir top
+  local filters=()
   for arg in "$@"; do
     case "$arg" in
       --fetch) do_fetch=1 ;;
       --dirty) dirty_only=1 ;;
-      *) echo "repo status: unknown flag $arg" >&2; return 1 ;;
+      --*) echo "repo status: unknown flag $arg" >&2; return 1 ;;
+      *) filters+=("$arg") ;;
     esac
   done
   if [ -f "$MANIFEST" ]; then
     while read -r rel url; do
       case "$rel" in '' | '#'* | ignore) continue ;; esac
+      name_selected "$rel" || continue
       if [ -e "$PROJECTS/$rel/.git" ]; then
         if [ "$do_fetch" -eq 1 ]; then
           git -C "$PROJECTS/$rel" fetch --quiet 2>/dev/null || echo "fetch failed: $rel" >&2
@@ -263,6 +282,7 @@ cmd_status() {
     rel=${top#"$PROJECTS"/}
     [ "$rel" = "env" ] && continue
     ignored "$rel" && continue
+    name_selected "$rel" || continue
     [ -n "$(manifest_url "$rel")" ] || echo "UNTRACKED $rel  (repo register to add)"
   done < <(find "$PROJECTS" -mindepth 2 -maxdepth 6 -type d -name .git -prune | sort)
 }

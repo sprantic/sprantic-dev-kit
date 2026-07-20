@@ -30,6 +30,11 @@
 PROJECTS="${REPO_PROJECTS_ROOT:-$HOME/projects}"
 MANIFEST="${REPO_MANIFEST:-$PROJECTS/env/repos.manifest}"
 
+# Never prompt for credentials mid-run: an https remote without stored credentials
+# (e.g. a private repo) must fail fast and be counted, not hang sync/status at an
+# interactive username prompt.
+export GIT_TERMINAL_PROMPT=0
+
 usage() {
   sed -n 's/^#   //p' "$0" 2>/dev/null || true
   echo "manifest: $MANIFEST"

@@ -8,7 +8,13 @@
 #                                    pushes a changed local origin URL into the manifest
 #   repo scan                        walk ~/projects and register every clone found
 #   repo sync [--fetch] [--fix-remotes]  clone everything missing here; --fix-remotes
-#                                    resets drifted local origin URLs to the manifest
+#                                    resets drifted local origin URLs to the manifest.
+#                                    A missing entry whose URL matches exactly ONE
+#                                    untracked local clone is a MOVE (mv on disk) —
+#                                    sync renames the manifest entry instead of
+#                                    re-cloning; commit the manifest to publish.
+#                                    Two same-URL candidates = ambiguous, left alone.
+#                                    Move procedure: mv, repo sync, commit env.
 #   repo status [--fetch] [--dirty] [name...]  manifest vs. local: missing, untracked,
 #                                    DRIFTED remotes, plus each clone's branch state
 #                                    (ahead/behind upstream, dirty); --fetch refreshes
@@ -141,6 +147,36 @@ cmd_scan() {
   echo "scan done — review, then commit repos.manifest in the env repo to publish"
 }
 
+# A missing manifest entry whose URL matches an UNTRACKED local clone is a MOVE
+# (mv on disk without updating the manifest), not a gap — print the new relpath.
+# Empty when no candidate; multiple candidates print nothing (ambiguous: two
+# untracked clones of the same URL — resolve by hand).
+find_moved_clone() {
+  local url=$1 gitdir top rel local_url match="" n=0
+  while IFS= read -r gitdir; do
+    top=$(dirname "$gitdir")
+    rel=${top#"$PROJECTS"/}
+    [ "$rel" = "env" ] && continue
+    ignored "$rel" && continue
+    [ -n "$(manifest_url "$rel")" ] && continue
+    local_url=$(clean_url "$(git -C "$top" remote get-url origin 2>/dev/null || true)")
+    if [ "$local_url" = "$url" ]; then
+      match=$rel
+      n=$((n + 1))
+    fi
+  done < <(find "$PROJECTS" -mindepth 2 -maxdepth 6 -type d -name .git -prune | sort)
+  [ "$n" -eq 1 ] && printf '%s\n' "$match"
+}
+
+# Rename a manifest entry's relpath (URL unchanged), keeping the file sorted.
+manifest_rename() {
+  local tmp
+  tmp=$(mktemp)
+  awk -v old="$1" -v new="$2" '$1 == old { $1 = new } { print }' "$MANIFEST" > "$tmp"
+  mv "$tmp" "$MANIFEST"
+  sort -o "$MANIFEST" "$MANIFEST"
+}
+
 # Clone one manifest entry. Through direnv when available so the target tree's
 # .envrc (identity pinning) applies exactly as it would for a manual clone there.
 clone_one() {
@@ -159,7 +195,7 @@ clone_one() {
 }
 
 cmd_sync() {
-  local do_fetch=0 fix_remotes=0 arg rel url local_url failures=0 cloned=0 drifted=0
+  local do_fetch=0 fix_remotes=0 arg rel url local_url failures=0 cloned=0 drifted=0 moved=0 moved_to
   for arg in "$@"; do
     case "$arg" in
       --fetch) do_fetch=1 ;;
@@ -191,13 +227,23 @@ cmd_sync() {
       fi
       continue
     fi
+    # Before re-cloning: if an untracked clone with this URL exists elsewhere,
+    # the repo was MOVED on disk — reconcile the manifest to the new path
+    # instead of creating a second checkout at the old one.
+    moved_to=$(find_moved_clone "$url")
+    if [ -n "$moved_to" ]; then
+      manifest_rename "$rel" "$moved_to"
+      echo "moved: $rel -> $moved_to  (manifest updated — commit repos.manifest to publish)"
+      moved=$((moved + 1))
+      continue
+    fi
     if clone_one "$rel" "$url"; then
       cloned=$((cloned + 1))
     else
       failures=$((failures + 1))
     fi
   done < "$MANIFEST"
-  echo "sync done: $cloned cloned, $failures failed, $drifted drifted remote(s)"
+  echo "sync done: $cloned cloned, $moved moved, $failures failed, $drifted drifted remote(s)"
   [ "$failures" -eq 0 ] && [ "$drifted" -eq 0 ]
 }
 

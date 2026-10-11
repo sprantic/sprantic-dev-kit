@@ -122,7 +122,7 @@ Configs and apps travel between machines through the env repo; the **clones them
 
 **Install** (home-manager): copy `templates/repo-registry.sh` + `templates/repo-registry.nix` side by side into the env repo's home tree and import the module. Conventions are overridable via `REPO_PROJECTS_ROOT` / `REPO_MANIFEST` (defaults: `~/projects`, `<root>/env/repos.manifest`).
 
-**Workflow**: `repo register` (one clone) or `repo scan` (walk everything) → commit + push env → other machine: pull env, `repo sync`. `repo status` shows `present` / `MISSING` / `DRIFTED` / `UNTRACKED` at a glance.
+**Workflow**: `repo register` (one clone) or `repo scan` (walk everything) → commit + push env → other machine: pull env, `repo sync` (everything missing) or `repo sync <name>…` (single projects, by base name or relpath — for a machine that only needs a few). `repo status` shows `present` / `MISSING` / `DRIFTED` / `UNTRACKED` at a glance.
 
 **Drift model — the manifest is the published truth.** A local origin URL that differs is either an unpublished change (`repo register --update` pushes it into the manifest) or stale (`repo sync --fix-remotes` resets it to the manifest) — resolve via the verbs, not by hand, so manifest and machines converge. Embedded http(s) credentials are **stripped before recording** (a token in an origin URL never lands in the manifest — but it *was* in cleartext → **rotate-secrets**). Clones run through `direnv exec <parent>`, so the per-tree identity/SSH routing (§5–6) applies exactly as a manual clone from inside that tree; a blocked `.envrc` needs one `direnv allow <parent>` per machine.
 

@@ -7,8 +7,12 @@
 #   repo register [--update] [dir]   add the clone at dir (default: cwd); --update
 #                                    pushes a changed local origin URL into the manifest
 #   repo scan                        walk ~/projects and register every clone found
-#   repo sync [--fetch] [--fix-remotes]  clone everything missing here; --fix-remotes
-#                                    resets drifted local origin URLs to the manifest.
+#   repo sync [--fetch] [--fix-remotes] [name...]  clone everything missing here;
+#                                    --fix-remotes resets drifted local origin URLs to
+#                                    the manifest. Trailing names limit the run to those
+#                                    entries (base name or full relpath, as in status) —
+#                                    for a machine that only needs a few projects; a
+#                                    name matching no entry is an error.
 #                                    A missing entry whose URL matches exactly ONE
 #                                    untracked local clone is a MOVE (mv on disk) —
 #                                    sync renames the manifest entry instead of
@@ -165,7 +169,11 @@ find_moved_clone() {
       n=$((n + 1))
     fi
   done < <(find "$PROJECTS" -mindepth 2 -maxdepth 6 -type d -name .git -prune | sort)
-  [ "$n" -eq 1 ] && printf '%s\n' "$match"
+  # errexit-safe: no candidate (n=0) or ambiguity (n>1) must return 0, not 1 —
+  # the deployed wrapper runs under `set -o errexit`, and a non-zero return here
+  # propagates through the $(…) assignment in cmd_sync and silently kills the
+  # whole sync at the first missing entry that isn't a move.
+  if [ "$n" -eq 1 ]; then printf '%s\n' "$match"; fi
 }
 
 # Rename a manifest entry's relpath (URL unchanged), keeping the file sorted.
@@ -196,19 +204,36 @@ clone_one() {
 
 cmd_sync() {
   local do_fetch=0 fix_remotes=0 arg rel url local_url failures=0 cloned=0 drifted=0 moved=0 moved_to
+  local filters=()
   for arg in "$@"; do
     case "$arg" in
       --fetch) do_fetch=1 ;;
       --fix-remotes) fix_remotes=1 ;;
-      *) echo "repo sync: unknown flag $arg" >&2; return 1 ;;
+      --*) echo "repo sync: unknown flag $arg" >&2; return 1 ;;
+      *) filters+=("$arg") ;;
     esac
   done
   [ -f "$MANIFEST" ] || {
     echo "repo sync: no manifest at $MANIFEST — pull the env repo first" >&2
     return 1
   }
+  # A name that selects nothing is a typo, not an empty sync — fail before cloning
+  # anything, so a partial run never looks like success.
+  if [ "${#filters[@]}" -gt 0 ]; then
+    for arg in "${filters[@]}"; do
+      awk -v f="$arg" '
+        $1 == "" || $1 ~ /^#/ || $1 == "ignore" { next }
+        { n = split($1, parts, "/") }
+        $1 == f || parts[n] == f { found = 1 }
+        END { exit !found }' "$MANIFEST" || {
+        echo "repo sync: no manifest entry named $arg (repo list)" >&2
+        return 1
+      }
+    done
+  fi
   while read -r rel url; do
     case "$rel" in '' | '#'* | ignore) continue ;; esac
+    name_selected "$rel" || continue
     if [ -e "$PROJECTS/$rel/.git" ]; then
       # Remote drift: the manifest is the published truth; a differing local origin is
       # either an unpublished change (repo register --update) or stale (fix it here).

@@ -10,7 +10,7 @@ Converge this machine's `~/projects` with the registry (COOKBOOK §10, sibling o
 ## Steps
 1. **Fresh manifest**: `cd ~/projects/env && git pull` — the manifest travels with the env repo.
 2. **Preview**: `repo status` → `MISSING` (will be cloned), `DRIFTED` (step 4), `UNTRACKED` (step 5). Nothing flagged → done, say so.
-3. **Sync**: `repo sync` clones everything missing through `direnv exec <parent>`, so each tree's identity/SSH routing applies. A clone failing on a blocked `.envrc` → `direnv allow <parent>` once on this machine, re-run `repo sync`. A `moved:` line means a repo was relocated on disk — sync renamed the manifest entry (no re-clone); commit `repos.manifest` to publish the new path.
+3. **Sync**: `repo sync` clones everything missing through `direnv exec <parent>`, so each tree's identity/SSH routing applies. A machine that only needs a few projects: `repo sync <name>…` (base name or relpath; an unknown name is an error). A clone failing on a blocked `.envrc` → `direnv allow <parent>` once on this machine, re-run `repo sync`. A `moved:` line means a repo was relocated on disk — sync renamed the manifest entry (no re-clone); commit `repos.manifest` to publish the new path.
 4. **Drift** — the manifest is the published truth; don't guess which side wins, ask/check:
    - the **local** URL is the newer, correct one → `repo register --update <dir>` (publishes it into the manifest).
    - the **manifest** is right → `repo sync --fix-remotes` (resets local origins).
